@@ -6,9 +6,9 @@
 #include <mySD.h>
 #include <ToneESP32.h>
 #include <Adafruit_LIS3MDL.h>
-#include <Adafruit_Sensor.h>
-#include <time.h>
-unsigned long myTime;
+//#include <Adafruit_Sensor.h>
+#include <ESP32Time.h>
+ESP32Time rtc(0);  // offset in seconds GMT+2
 //define the pins used by the LoRa transceiver module
 #define SCK 5
 #define MISO 19
@@ -20,6 +20,7 @@ unsigned long myTime;
 #define BUZZER_PIN 33
 #define BUZZER_CHANNEL 5
 
+#define SDSS 13
 //433E6 for Asia
 //866E6 for Europe
 //915E6 for North America
@@ -34,10 +35,9 @@ ToneESP32 buzzer(BUZZER_PIN, BUZZER_CHANNEL);
 ext::File myFile;
 int counter = 0;
 int checkSensors;
-const int chipSelect = 13;
 void setup() {
-   //pinMode(14, OUTPUT);
-   checkSensors=0;
+  checkSensors=0;
+  rtc.setTime(0, 38, 12, 9, 4, 2023);  // 17th Jan 2021 15:24:30
   Serial.begin(115200);
   Serial1.begin(9600, SERIAL_8N1, 34, 12);
   Serial.println("LoRa Sender Test");
@@ -49,27 +49,23 @@ void setup() {
   
   if (!LoRa.begin(BAND)) {
     Serial.println("Starting LoRa failed!");
-    checkSensors+=1;
-    while (1);
+    checkSensors=checkSensors+1;
   }
   Serial.println("LoRa Initializing OK!");
     if (!bmp.begin()) {
       Serial.println("Could not find a valid BMP085 sensor, check wiring!");
-      checkSensors+=2;
-      while (1) {}
+      checkSensors=checkSensors+2;
     }
-  pinMode(SS, OUTPUT);
-  if (!SD.begin(13, 15, 2, 14)) {
+  pinMode(SDSS, OUTPUT);
+  if (!SD.begin(SDSS, 15, 2, 14)) {
     Serial.println("initialization failed!");
-    checkSensors+=3;
-    return;
-  }
+    checkSensors=checkSensors+4;
+    }
   Serial.println("initialization done.");
   // Try to initialize!
   if (! lis3mdl.begin_I2C()) {          // hardware I2C mode, can pass in address & alt Wire
     Serial.println("Failed to find LIS3MDL chip");
-    checkSensors+=4;
-    while (1) { delay(10); }
+    checkSensors=checkSensors+8;
   }
   Serial.println("LIS3MDL Found!");
   lis3mdl.setPerformanceMode(LIS3MDL_MEDIUMMODE);
@@ -81,6 +77,7 @@ void setup() {
                           true, // polarity
                           false, // don't latch
                           true); // enabled!
+  Serial.print(checkSensors);
   if (checkSensors!=0){
   for(int i=0;i<=checkSensors;i++){
     buzzer.tone(NOTE_D4, 250);
@@ -89,17 +86,20 @@ void setup() {
   }else
   {
     buzzer.tone(NOTE_C5, 250);
-    buzzer.tone(NOTE_D4, 250);
     delay(250);
-    buzzer.tone(NOTE_C5, 250);
     buzzer.tone(NOTE_B4, 250);
   }
 
 }
 
 void loop() {
-    myFile = SD.open("test.txt", FILE_WRITE);
-    LoRa.beginPacket();
+    Serial.println(rtc.getTime());
+    // formating options  http://www.cplusplus.com/reference/ctime/strftime/
+
+    struct tm timeinfo = rtc.getTimeStruct();
+    //Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");   //  (tm struct) Sunday, January 17 2021 07:24:38
+  
+    delay(1000);
     float t=bmp.readTemperature();
     float p=bmp.readPressure();
     float rAlt=bmp.readAltitude();
@@ -113,25 +113,10 @@ void loop() {
     Serial.print("Pressure = ");
     Serial.print(p);
     Serial.println(" Pa");
-    LoRa.print(p);
-    LoRa.print(",");
     // Calculate altitude assuming 'standard' barometric
     // pressure of 1013.25 millibar = 101325 Pascal
     Serial.print("Altitude = ");
     Serial.print(rAlt);
-    Serial.println(" meters");
-    LoRa.print(rAlt);
-    LoRa.print(",");
-    Serial.print("Pressure at sealevel (calculated) = ");
-    Serial.print(rSl);
-    Serial.println(" Pa");
-
-  // you can get a more precise measurement of altitude
-  // if you know the current sea level pressure which will
-  // vary with weather and such. If it is 1015 millibars
-  // that is equal to 101500 Pascals.
-    Serial.print("Real altitude = ");
-    Serial.print(rSalt);
     Serial.println(" meters");
     bool newData = false;
     unsigned long chars;
@@ -149,57 +134,35 @@ void loop() {
     }
   }
   
-  gps.stats(&chars, &sentences, &failed);
-  Serial.print(" CHARS=");
-  Serial.print(chars);
-  Serial.print(" SENTENCES=");
-  Serial.print(sentences);
-  Serial.print(" CSUM ERR=");
-  Serial.println(failed);
-  /*if (chars == 0)
-    Serial.println("** No characters received from GPS: check wiring **");
-    Serial.println();
-    //Send LoRa packet to receiver
-   else{
-    if (newData)
-    {*/ 
       float flat, flon;
       unsigned long age;
       gps.f_get_position(&flat, &flon, &age);
-      float pflat=(flat == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 :flat, 6);
-      float pflon=(flon == TinyGPS::GPS_INVALID_F_ANGLE ? 0.0 :flon, 6);
       Serial.print("LAT=");
-      Serial.print(pflat);
-      LoRa.print(pflat);
-      LoRa.print(",");
+      Serial.print(flat);
       Serial.print(" LON=");
-      Serial.println(pflon);
-      LoRa.print(pflon);
+      Serial.println(flon);
     //}
    //}
    lis3mdl.read();      // get X Y and Z data at once
   // Then print out the raw data
-  Serial.print("\nX:  "); Serial.print(lis3mdl.x); 
-  Serial.print("  \tY:  "); Serial.print(lis3mdl.y); 
-  Serial.print("  \tZ:  "); Serial.println(lis3mdl.z); 
+  Serial.print("X: "); Serial.print(lis3mdl.x); 
+  Serial.print("Y: "); Serial.print(lis3mdl.y); 
+  Serial.print("Z: "); Serial.println(lis3mdl.z); 
 
   /* Or....get a new sensor event, normalized to uTesla */
   sensors_event_t event; 
   lis3mdl.getEvent(&event);
   /* Display the results (magnetic field is measured in uTesla) */
-  Serial.print("\tX: "); Serial.print(event.magnetic.x);
-  Serial.print(" \tY: "); Serial.print(event.magnetic.y); 
-  Serial.print(" \tZ: "); Serial.print(event.magnetic.z); 
+  Serial.print("X: "); Serial.print(event.magnetic.x);
+  Serial.print("Y: "); Serial.print(event.magnetic.y); 
+  Serial.print("Z: "); Serial.print(event.magnetic.z); 
   Serial.println(" uTesla ");
-  LoRa.println();
+  String line=String(counter)+","+rtc.getTime()+","+String(flon)+","+String(flat)+","+String(rAlt)+","+String(t)+","+String(p) ;
+  LoRa.beginPacket();
+  LoRa.print(line);
   LoRa.endPacket();
-  myTime=millis();
-  String timeStamp=String(myTime);
-  Serial.print("Current time obtained from RTC is: ");
-  Serial.println(timeStamp);
   myFile = SD.open("test.txt", FILE_WRITE);
   if(myFile){
-    String line=timeStamp+","+String(t)+","+String(p);
     myFile.println(line);
     Serial.println("ok to file");
   }
