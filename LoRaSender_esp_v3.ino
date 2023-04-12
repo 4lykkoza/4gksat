@@ -1,6 +1,6 @@
 #include <SPI.h>
 #include <LoRa.h>
-#include <Adafruit_BMP085.h>
+#include <Adafruit_BMP280.h>
 #include <SoftwareSerial.h>
 #include <TinyGPS.h>
 #include <mySD.h>
@@ -28,7 +28,7 @@ ESP32Time rtc(0);  // offset in seconds GMT+2
 TinyGPS gps;
 
 Adafruit_LIS3MDL lis3mdl;
-Adafruit_BMP085 bmp;
+Adafruit_BMP280 bmp; // I2C
 ToneESP32 buzzer(BUZZER_PIN, BUZZER_CHANNEL);
 
 //packet counter
@@ -93,7 +93,7 @@ void setup() {
 }
 
 void loop() {
-    Serial.println(rtc.getTime());
+    /*Serial.println(rtc.getTime());*/
     // formating options  http://www.cplusplus.com/reference/ctime/strftime/
 
     struct tm timeinfo = rtc.getTimeStruct();
@@ -103,13 +103,11 @@ void loop() {
     float t=bmp.readTemperature();
     float p=bmp.readPressure();
     float rAlt=bmp.readAltitude();
-    float rSl=bmp.readSealevelPressure();
-    float rSalt=bmp.readAltitude(101500);
-    Serial.print("Temperature = ");
+    //float rSl=bmp.readSealevelPressure();
+    //float rSalt=bmp.readAltitude(101500);
+   /* Serial.print("Temperature = ");
     Serial.print(t);
     Serial.println(" *C");
-    LoRa.print(t);
-    LoRa.print(",");
     Serial.print("Pressure = ");
     Serial.print(p);
     Serial.println(" Pa");
@@ -117,7 +115,7 @@ void loop() {
     // pressure of 1013.25 millibar = 101325 Pascal
     Serial.print("Altitude = ");
     Serial.print(rAlt);
-    Serial.println(" meters");
+    Serial.println(" meters");*/
     bool newData = false;
     unsigned long chars;
     unsigned short sentences, failed;
@@ -137,34 +135,36 @@ void loop() {
       float flat, flon;
       unsigned long age;
       gps.f_get_position(&flat, &flon, &age);
-      Serial.print("LAT=");
+     /* Serial.print("LAT=");
       Serial.print(flat);
       Serial.print(" LON=");
-      Serial.println(flon);
+      Serial.println(flon);*/
     //}
    //}
    lis3mdl.read();      // get X Y and Z data at once
   // Then print out the raw data
-  Serial.print("X: "); Serial.print(lis3mdl.x); 
+  /*Serial.print("X: "); Serial.print(lis3mdl.x); 
   Serial.print("Y: "); Serial.print(lis3mdl.y); 
-  Serial.print("Z: "); Serial.println(lis3mdl.z); 
+  Serial.print("Z: "); Serial.println(lis3mdl.z); */
 
   /* Or....get a new sensor event, normalized to uTesla */
   sensors_event_t event; 
   lis3mdl.getEvent(&event);
   /* Display the results (magnetic field is measured in uTesla) */
+  /*
   Serial.print("X: "); Serial.print(event.magnetic.x);
   Serial.print("Y: "); Serial.print(event.magnetic.y); 
   Serial.print("Z: "); Serial.print(event.magnetic.z); 
-  Serial.println(" uTesla ");
-  String line=String(counter)+","+rtc.getTime()+","+String(flon)+","+String(flat)+","+String(rAlt)+","+String(t)+","+String(p) ;
+  Serial.println(" uTesla ");*/
+  String line=String(counter)+","+rtc.getTime()+","+String(flon)+","+String(flat)+","+String(rAlt)+","+String(t)+","+String(p)+","+String(event.magnetic.x)+","+String(event.magnetic.y)+","+String(event.magnetic.z);
+  Serial.println(line);
   LoRa.beginPacket();
   LoRa.print(line);
   LoRa.endPacket();
   myFile = SD.open("test.txt", FILE_WRITE);
   if(myFile){
     myFile.println(line);
-    Serial.println("ok to file");
+    //Serial.println("ok to file");
   }
   myFile.close();
   counter++;
