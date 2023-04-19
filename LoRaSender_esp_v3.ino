@@ -52,23 +52,25 @@ void setup() {
     Serial.println("Starting LoRa failed!");
     checkSensors=checkSensors+1;
   }
-  Serial.println("LoRa Initializing OK!");
+  //Serial.println("LoRa Initializing OK!");
     if (!bmp.begin()) {
       Serial.println("Could not find a valid BMP085 sensor, check wiring!");
       checkSensors=checkSensors+2;
     }
+  /*
   pinMode(SDSS, OUTPUT);
   if (!SD.begin(SDSS, 15, 2, 14)) {
-    Serial.println("initialization failed!");
+    Serial.println("Sd initialization failed!");
     checkSensors=checkSensors+4;
     }
-  Serial.println("initialization done.");
+   */
+  //Serial.println("initialization done.");
   // Try to initialize!
   if (! lis3mdl.begin_I2C()) {          // hardware I2C mode, can pass in address & alt Wire
     Serial.println("Failed to find LIS3MDL chip");
     checkSensors=checkSensors+8;
   }
-  Serial.println("LIS3MDL Found!");
+  //Serial.println("LIS3MDL Found!");
   lis3mdl.setPerformanceMode(LIS3MDL_MEDIUMMODE);
   lis3mdl.setOperationMode(LIS3MDL_CONTINUOUSMODE);
   lis3mdl.setDataRate(LIS3MDL_DATARATE_155_HZ);
@@ -81,14 +83,14 @@ void setup() {
   Serial.print(checkSensors);
   if (checkSensors!=0){
   for(int i=0;i<=checkSensors;i++){
-    buzzer.tone(NOTE_D4, 250);
-    delay(250);
+    buzzer.tone(NOTE_D4, 500);
+    delay(500);
   }
   }else
   {
-    buzzer.tone(NOTE_C5, 250);
+    buzzer.tone(NOTE_C5, 500);
     delay(250);
-    buzzer.tone(NOTE_B4, 250);
+    buzzer.tone(NOTE_B4, 500);
   }
 
 }
@@ -163,12 +165,14 @@ void loop() {
   LoRa.beginPacket();
   LoRa.print(line);
   LoRa.endPacket();
+  /*
   myFile = SD.open("test.txt", FILE_WRITE);
   if(myFile){
     myFile.println(line);
     //Serial.println("ok to file");
   }
   myFile.close();
+  */
   counter++;
   
   //buzzer.noTone();
