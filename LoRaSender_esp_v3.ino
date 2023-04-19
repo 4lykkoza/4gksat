@@ -35,6 +35,7 @@ ToneESP32 buzzer(BUZZER_PIN, BUZZER_CHANNEL);
 ext::File myFile;
 int counter = 0;
 int checkSensors;
+unsigned long start=0;
 void setup() {
   checkSensors=0;
   rtc.setTime(0, 38, 12, 9, 4, 2023);  // 17th Jan 2021 15:24:30
@@ -99,7 +100,7 @@ void loop() {
     struct tm timeinfo = rtc.getTimeStruct();
     //Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");   //  (tm struct) Sunday, January 17 2021 07:24:38
   
-    delay(1000);
+    //delay(1000);
     float t=bmp.readTemperature();
     float p=bmp.readPressure();
     float rAlt=bmp.readAltitude();
@@ -121,8 +122,8 @@ void loop() {
     unsigned short sentences, failed;
 
   // For one second we parse GPS data and report some key values
-  for (unsigned long start = millis(); millis() - start < 1000;)
-  {
+  //for (unsigned long start = millis(); millis() - start < 1000;)
+  if (millis()-start>5000){
     while (Serial1.available())
     {
       char c =Serial1.read();
@@ -130,6 +131,7 @@ void loop() {
       if (gps.encode(c)) // Did a new valid sentence come in?
         newData = true;
     }
+    start=millis();
   }
   
       float flat, flon;
@@ -156,7 +158,7 @@ void loop() {
   Serial.print("Y: "); Serial.print(event.magnetic.y); 
   Serial.print("Z: "); Serial.print(event.magnetic.z); 
   Serial.println(" uTesla ");*/
-  String line=String(counter)+","+rtc.getTime()+","+String(flon)+","+String(flat)+","+String(rAlt)+","+String(t)+","+String(p)+","+String(event.magnetic.x)+","+String(event.magnetic.y)+","+String(event.magnetic.z);
+  String line=String(counter)+","+String(millis())+","+rtc.getTime()+","+String(flon)+","+String(flat)+","+String(rAlt)+","+String(t)+","+String(p)+","+String(event.magnetic.x)+","+String(event.magnetic.y)+","+String(event.magnetic.z);
   Serial.println(line);
   LoRa.beginPacket();
   LoRa.print(line);

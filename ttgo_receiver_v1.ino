@@ -1,5 +1,6 @@
 #include <SPI.h>
 #include <LoRa.h>
+#include <mySD.h>
 
 #define SCK 5
 #define MISO 19
@@ -12,24 +13,28 @@
 //866E6 for Europe
 //915E6 for North America
 #define BAND 868E6
-
-String temperature;
-String pressure;
-String alt;
 String rssi;
-
+ext::File myFile;
+#define SDSS 13
 
 void getLoRaData() {
-  Serial.print("Lora packet received: ");
+  //Serial.print("Lora packet received: ");
   // Read packet
   while (LoRa.available()) {
     String LoRaData = LoRa.readString();
-    Serial.print(LoRaData); 
+    Serial.println(LoRaData); 
+    myFile = SD.open("gksat2.txt", FILE_WRITE);
+    if(myFile){
+      myFile.println(LoRaData);
+      Serial.println("ok to file");
+    myFile.close();
   }
+  }
+ 
   // Get RSSI
-  rssi = LoRa.packetRssi();
-  Serial.print(" with RSSI ");    
-  Serial.println(rssi);
+  //rssi = LoRa.packetRssi();
+  //Serial.print(" with RSSI ");    
+  //Serial.println(rssi);
 }
 void setup() {
    //pinMode(14, OUTPUT);
@@ -44,6 +49,10 @@ void setup() {
     Serial.println("Starting LoRa failed!");
     while (1);
   }
+  if (!SD.begin(SDSS, 15, 2, 14)) {
+    Serial.println("initialization failed!");
+   }
+  Serial.println("initialization done.");
 }
 
 void loop() {
